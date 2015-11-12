@@ -47,7 +47,16 @@ macro_rules! packets {
             type T = Protocol ;
 
             fn encoded_len(value: &Self::T) -> usize {
-                10
+                let mut len: usize = 0;
+                
+                match value { $(
+                    &Protocol::$name { $($fname),* } => {$(
+                        //TODO: try! is not the best thing here
+                        len += <$fty as Endec>::encoded_len(&$fname);
+                    )*}
+                )+}
+
+                len
             }
 
             fn encode(value: &Self::T, dst: &mut Write) -> io::Result<usize> {
@@ -99,6 +108,7 @@ mod tests {
         let mut buf:Vec<u8> = Vec::new();
         Protocol::encode(&x, &mut buf);
         println!("{:?}", buf);
+        assert!(Protocol::encoded_len(&x) == 4);
     }
     
     
