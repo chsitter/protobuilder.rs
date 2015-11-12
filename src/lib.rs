@@ -11,6 +11,13 @@ pub trait Endec {
     fn decode(src: &mut Read) -> io::Result<Self::T>;
 }
 
+pub trait Packet {
+    type T;
+
+    fn encode(&self, dst: &mut Write) -> io::Result<usize>;
+    fn decode(src: &mut Read) -> io::Result<Self::T>;
+}
+
 impl Endec for u16 {
     type T = u16;
 
