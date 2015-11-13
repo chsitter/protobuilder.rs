@@ -11,13 +11,6 @@ pub trait Endec {
     fn decode(src: &mut Read) -> io::Result<Self::T>;
 }
 
-pub trait Packet {
-    type T;
-
-    fn encode(&self, dst: &mut Write) -> io::Result<usize>;
-    fn decode(src: &mut Read) -> io::Result<Self::T>;
-}
-
 impl Endec for u16 {
     type T = u16;
 
@@ -97,6 +90,13 @@ macro_rules! packets {
     }
 }
 
+macro_rules! protocol {
+    ($proto_name:ident : $header_func:expr => {
+        $($id:expr => $name:ident { $($fname:ident: $fty:ty),* })+}) => {
+            packets!($($id => $name { $($fname:$fty),* })+);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -104,13 +104,21 @@ mod tests {
     use std::io::prelude::*;
     use std::io::{Error, ErrorKind};
 
-    packets! {
-        0 => Message { a: u16, b: u16 }
-        1 => Msg { b: u16 }
+    protocol! {
+        dummy : |x, y| -> [u8] { [0u8,2] } => {
+            0 => Message { a: u16, b: u16 }
+            1 => Msg { b: u16 }
+        }
+        //other : |x, y| -> [u8] { [0u8, 2] } => {
+            //0 => Message { a: u16, b: u16 }
+            //1 => Msg { b: u16 }
+        //}
     }
     
     #[test]
     fn test_main() {
+
+
         let x:Protocol = Protocol::Message { a: 10, b: 15 };
         let mut buf:Vec<u8> = Vec::new();
         Protocol::encode(&x, &mut buf);
