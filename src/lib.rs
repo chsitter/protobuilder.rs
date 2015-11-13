@@ -35,22 +35,22 @@ impl Endec for u16 {
 }
 
 macro_rules! packets {
-    ($($id:expr => $name:ident { $($fname:ident: $fty:ty),* })+) => {
+    ($proto_name:ident, $($id:expr => $name:ident { $($fname:ident: $fty:ty),* })+) => {
         #[derive(Debug)]
-        enum Protocol {
+        enum $proto_name {
             $(
                 $name { $($fname:$fty),* }
              ),+
         }
 
-        impl Endec for Protocol {
-            type T = Protocol ;
+        impl Endec for $proto_name {
+            type T = $proto_name;
 
             fn encoded_len(value: &Self::T) -> usize {
                 let mut len: usize = 0;
                 
                 match value { $(
-                    &Protocol::$name { $($fname),* } => {$(
+                    &$proto_name::$name { $($fname),* } => {$(
                         //TODO: try! is not the best thing here
                         len += <$fty as Endec>::encoded_len(&$fname);
                     )*}
@@ -63,7 +63,7 @@ macro_rules! packets {
                 let mut len: usize = 0;
 
                 match value { $(
-                    &Protocol::$name { $($fname),* } => {$(
+                    &$proto_name::$name { $($fname),* } => {$(
                         //TODO: try! is not the best thing here
                         len += try!(<$fty as Endec>::encode(&$fname, dst));
                     )*}
@@ -77,7 +77,7 @@ macro_rules! packets {
 
                 match id { 
                     $(
-                        $id => Ok(Protocol::$name {
+                        $id => Ok($proto_name::$name {
                                     $(
                                         $fname:try!(<$fty as Endec>::decode(src))
                                     ),*
@@ -91,9 +91,9 @@ macro_rules! packets {
 }
 
 macro_rules! protocol {
-    ($proto_name:ident : $header_func:expr => {
-        $($id:expr => $name:ident { $($fname:ident: $fty:ty),* })+}) => {
-            packets!($($id => $name { $($fname:$fty),* })+);
+    ($($proto_name:ident : $header_func:expr => {
+        $($id:expr => $name:ident { $($fname:ident: $fty:ty),* })+})+) => {
+            $(packets!($proto_name, $($id => $name { $($fname:$fty),* })+);)+
     }
 }
 
@@ -105,26 +105,22 @@ mod tests {
     use std::io::{Error, ErrorKind};
 
     protocol! {
-        dummy : |x, y| -> [u8] { [0u8,2] } => {
+        Testproto : |x, y| -> [u8] { [0u8,2] } => {
             0 => Message { a: u16, b: u16 }
             1 => Msg { b: u16 }
         }
-        //other : |x, y| -> [u8] { [0u8, 2] } => {
-            //0 => Message { a: u16, b: u16 }
-            //1 => Msg { b: u16 }
-        //}
+        Otherproto: |x, y| -> [u8] { [0u8, 2] } => {
+            0 => Message { a: u16 }
+        }
     }
     
     #[test]
     fn test_main() {
-
-
-        let x:Protocol = Protocol::Message { a: 10, b: 15 };
+        let x:Testproto = Testproto::Message { a: 10, b: 15 };
+        let y:Otherproto= Otherproto::Message { a: 10 };
         let mut buf:Vec<u8> = Vec::new();
-        Protocol::encode(&x, &mut buf);
+        Testproto::encode(&x, &mut buf);
         println!("{:?}", buf);
-        assert!(Protocol::encoded_len(&x) == 4);
+        assert!(Testproto::encoded_len(&x) == 4);
     }
-    
-    
 }
