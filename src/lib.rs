@@ -5,8 +5,6 @@ use std::io::{Error, ErrorKind};
 pub trait Endec {
     type T;
 
-    fn encoded_len(value: &Self::T) -> usize;
-
     fn encode(value: &Self::T, dst: &mut Write) -> io::Result<usize>;
     fn decode(src: &mut Read) -> io::Result<Self::T>;
 }
@@ -14,9 +12,6 @@ pub trait Endec {
 impl Endec for u16 {
     type T = u16;
 
-    fn encoded_len(value: &Self::T) -> usize {
-        2
-    }
 
     fn encode(value: &Self::T, dst: &mut Write) -> io::Result<usize> {
         let mut buf = [0u8; 2];
@@ -36,10 +31,6 @@ impl Endec for u16 {
 
 impl Endec for usize {
     type T = usize;
-
-    fn encoded_len(value: &Self::T) -> usize {
-        2
-    }
 
     fn encode(value: &Self::T, dst: &mut Write) -> io::Result<usize> {
         let mut buf = [0u8; 2];
@@ -69,27 +60,16 @@ macro_rules! packets {
         impl Endec for $proto_name {
             type T = $proto_name;
 
-            fn encoded_len(value: &Self::T) -> usize {
-                let mut len: usize = 0;
-                
-                match value { $(
-                    &$proto_name::$name { $($fname),* } => {$(
-                        len += <$fty as Endec>::encoded_len(&$fname);
-                    )*}
-                )+}
-
-                len
-            }
-
             fn encode(value: &Self::T, dst: &mut Write) -> io::Result<usize> {
                 let mut len: usize = 0;
-                
+                let mut buf: Vec<u8> = Vec::new();
 
                 match value { $(
                     &$proto_name::$name { $($fname),* } => {
                         //TODO: try! is not the best thing here
-                        len += try!(dst.write(&$header_func($id, <$proto_name as Endec>::encoded_len(value))));
-                        $(len += try!(<$fty as Endec>::encode(&$fname, dst));)*
+                        $(len += try!(<$fty as Endec>::encode(&$fname, &mut buf));)*;
+                        len += try!(dst.write(&$header_func($id, len)));
+                        dst.write(&buf);
                     }
                 )+}
 
@@ -144,7 +124,7 @@ mod tests {
             (a, b)
         } => {
             0 => Message { a: u16, b: u16 }
-            1 => Msg { b: u16 }
+            1 => Msg { a: u16, b: u16, c: u16, d: u16, e: u16, f: u16 , g: u16, h: u16 }
         }
         Otherproto: |x, y| -> [u8; 2] { [0u8, 2] }, |x: &mut Read| -> (u64, usize) { (0, 6) } => {
             0 => Message { a: u16 }
@@ -154,20 +134,13 @@ mod tests {
     #[test]
     fn test_encode() {
         let x:Testproto = Testproto::Message { a: 10, b: 15 };
-        //let y:Otherproto= Otherproto::Message { a: 10 };
         let mut buf:Vec<u8> = Vec::new();
-        Testproto::encode(&x, &mut buf);
-        println!("{:?}", buf);
-        assert!(Testproto::encoded_len(&x) == 4);
+        assert!(Testproto::encode(&x, &mut buf).unwrap() == 8);
     }
     
     #[test]
     fn test_decode() {
         let buf:Vec<u8> = vec![0u8, 0, 0, 4, 0, 10, 0, 15];
         let msg = Testproto::decode(&mut &buf[..]);
-        println!("{:?}", msg);
-        //assert!(Testproto::Message { a: 10, b: 15 } == msg);
     }
-
-
 }
