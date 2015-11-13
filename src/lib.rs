@@ -1,6 +1,5 @@
 use std::io;
 use std::io::prelude::*;
-use std::io::{Error, ErrorKind};
 
 pub trait Endec {
     type T;
@@ -9,9 +8,13 @@ pub trait Endec {
     fn decode(src: &mut Read) -> io::Result<Self::T>;
 }
 
+pub trait PacketHeader {
+    fn write(id: u16, len: usize, dst: &mut Write) -> io::Result<usize>;
+    fn read(src: &mut Read) -> io::Result<(u16, usize)>;
+}
+
 impl Endec for u16 {
     type T = u16;
-
 
     fn encode(value: &Self::T, dst: &mut Write) -> io::Result<usize> {
         let mut buf = [0u8; 2];
@@ -48,9 +51,10 @@ impl Endec for usize {
     }
 }
 
+#[macro_export]
 macro_rules! packets {
-    ($proto_name:ident, $header_func:expr, $header_dec_func:expr, $($id:expr => $name:ident { $($fname:ident: $fty:ty),* })+) => {
-        #[derive(Debug)]
+    ($proto_name:ident, $header_endec:ty, $($id:expr => $name:ident { $($fname:ident: $fty:ty),* })+) => {
+        #[derive(Debug,PartialEq)]
         enum $proto_name {
             $(
                 $name { $($fname:$fty),* }
@@ -68,8 +72,8 @@ macro_rules! packets {
                     &$proto_name::$name { $($fname),* } => {
                         //TODO: try! is not the best thing here
                         $(len += try!(<$fty as Endec>::encode(&$fname, &mut buf));)*;
-                        len += try!(dst.write(&$header_func($id, len)));
-                        dst.write(&buf);
+                        len += try!(<$header_endec as PacketHeader>::write($id, len, dst));
+                        try!(dst.write(&buf));
                     }
                 )+}
 
@@ -77,11 +81,7 @@ macro_rules! packets {
             }
             
             fn decode(src: &mut Read) -> io::Result<Self::T> {
-                let mut id = 0;
-                let mut len = 0;
-                {
-                let (id, len) = $header_dec_func(src);
-                }
+                let (id, len) = try!(<$header_endec as PacketHeader>::read(src));
 
                 match id { 
                     $(
@@ -98,10 +98,11 @@ macro_rules! packets {
     }
 }
 
+#[macro_export]
 macro_rules! protocol {
-    ($($proto_name:ident : $header_func:expr, $header_dec_func:expr => {
+    ($($proto_name:ident : $header_endec:ty => {
         $($id:expr => $name:ident { $($fname:ident: $fty:ty),* })+})+) => {
-            $(packets!($proto_name, $header_func, $header_dec_func, $($id => $name { $($fname:$fty),* })+);)+
+            $(packets!($proto_name, $header_endec, $($id => $name { $($fname:$fty),* })+);)+
     }
 }
 
@@ -112,23 +113,28 @@ mod tests {
     use std::io::prelude::*;
     use std::io::{Error, ErrorKind};
 
+    struct HeaderEncoder;
+    impl PacketHeader for HeaderEncoder {
+        fn write(id: u16, len: usize, dst: &mut Write) -> io::Result<usize> {
+            let mut hdr_len= try!(<u16 as Endec>::encode(&id, dst));
+            hdr_len += try!(<usize as Endec>::encode(&len, dst));
+            Ok(hdr_len)
+        }
+        fn read(src: &mut Read) -> io::Result<(u16, usize)> {
+            let id:u16 = <u16 as Endec>::decode(src).unwrap();
+            let len:usize = <usize as Endec>::decode(src).unwrap();
+            Ok((id, len))
+        }
+    }
+
     protocol! {
-        Testproto : |x, y| -> Vec<u8> { 
-            let mut buf:Vec<u8>= Vec::new();
-            <u16 as Endec>::encode(&x, &mut buf);
-            <usize as Endec>::encode(&y, &mut buf);
-            buf
-        }, |x: &mut Read| -> (u16, usize) { 
-            let a:u16 = <u16 as Endec>::decode(x).unwrap();
-            let b:usize = <usize as Endec>::decode(x).unwrap();
-            (a, b)
-        } => {
+        Testproto : HeaderEncoder => {
             0 => Message { a: u16, b: u16 }
             1 => Msg { a: u16, b: u16, c: u16, d: u16, e: u16, f: u16 , g: u16, h: u16 }
         }
-        Otherproto: |x, y| -> [u8; 2] { [0u8, 2] }, |x: &mut Read| -> (u64, usize) { (0, 6) } => {
-            0 => Message { a: u16 }
-        }
+        //Otherproto: |x, y| -> [u8; 2] { [0u8, 2] }, |x: &mut Read| -> (u64, usize) { (0, 6) } => {
+            //0 => Message { a: u16 }
+        //}
     }
     
     #[test]
@@ -141,6 +147,7 @@ mod tests {
     #[test]
     fn test_decode() {
         let buf:Vec<u8> = vec![0u8, 0, 0, 4, 0, 10, 0, 15];
-        let msg = Testproto::decode(&mut &buf[..]);
+        let msg = Testproto::decode(&mut &buf[..]).unwrap();
+        assert!(Testproto::Message { a: 10, b: 15 } == msg);
     }
 }
