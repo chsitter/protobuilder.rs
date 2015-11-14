@@ -7,9 +7,9 @@ use protobuilder::{PacketHeader, Endec};
 struct HeaderEncoder;
 impl PacketHeader for HeaderEncoder {
     fn write(id: u16, len: usize, dst: &mut Write) -> io::Result<usize> {
-        let mut len = try!(<u16 as Endec>::encode(&id, dst));
-        len += try!(<usize as Endec>::encode(&len, dst));
-        Ok(len)
+        let mut header_len = try!(<u16 as Endec>::encode(&id, dst));
+        header_len += try!(<usize as Endec>::encode(&len, dst));
+        Ok(header_len)
     }
     fn read(src: &mut Read) -> io::Result<(u16, usize)> {
         let id:u16 = <u16 as Endec>::decode(src).unwrap();

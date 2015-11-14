@@ -2,3 +2,6 @@
 name = "protobuilder"
 version = "0.1.0"
 authors = ["Christoph Sitter <christoph.sitter@gmail.com>"]
+
+[dependencies]
+num = "0.1.25"

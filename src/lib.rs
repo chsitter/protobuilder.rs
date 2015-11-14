@@ -1,3 +1,6 @@
+pub mod types;
+extern crate num;
+
 use std::io;
 use std::io::prelude::*;
 
@@ -11,44 +14,6 @@ pub trait Endec {
 pub trait PacketHeader {
     fn write(id: u16, len: usize, dst: &mut Write) -> io::Result<usize>;
     fn read(src: &mut Read) -> io::Result<(u16, usize)>;
-}
-
-impl Endec for u16 {
-    type T = u16;
-
-    fn encode(value: &Self::T, dst: &mut Write) -> io::Result<usize> {
-        let mut buf = [0u8; 2];
-        buf[0] = (value >> 8 & 0xffu8 as u16) as u8;
-        buf[1] = (value & 0xffu8 as u16) as u8;
-
-        assert_eq!(dst.write(&buf).is_ok(), true);
-        Ok(2)
-    }
-
-    fn decode(src: &mut Read) -> io::Result<Self::T> {
-        let mut buf = [0u8; 2];
-        assert_eq!(src.read(&mut buf).is_ok(), true);
-        Ok(((buf[0] as u16) << 8 ) | (buf[1] as u16))
-    }
-}
-
-impl Endec for usize {
-    type T = usize;
-
-    fn encode(value: &Self::T, dst: &mut Write) -> io::Result<usize> {
-        let mut buf = [0u8; 2];
-        buf[0] = (value >> 8 & 0xffu8 as usize) as u8;
-        buf[1] = (value & 0xffu8 as usize) as u8;
-
-        assert_eq!(dst.write(&buf).is_ok(), true);
-        Ok(2)
-    }
-
-    fn decode(src: &mut Read) -> io::Result<Self::T> {
-        let mut buf = [0u8; 2];
-        assert_eq!(src.read(&mut buf).is_ok(), true);
-        Ok(((buf[0] as usize) << 8 ) | (buf[1] as usize))
-    }
 }
 
 #[macro_export]
@@ -106,48 +71,49 @@ macro_rules! protocol {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::io;
-    use std::io::prelude::*;
-    use std::io::{Error, ErrorKind};
 
-    struct HeaderEncoder;
-    impl PacketHeader for HeaderEncoder {
-        fn write(id: u16, len: usize, dst: &mut Write) -> io::Result<usize> {
-            let mut hdr_len= try!(<u16 as Endec>::encode(&id, dst));
-            hdr_len += try!(<usize as Endec>::encode(&len, dst));
-            Ok(hdr_len)
-        }
-        fn read(src: &mut Read) -> io::Result<(u16, usize)> {
-            let id:u16 = <u16 as Endec>::decode(src).unwrap();
-            let len:usize = <usize as Endec>::decode(src).unwrap();
-            Ok((id, len))
-        }
-    }
+//#[cfg(test)]
+//mod tests {
+    //use super::*;
+    //use std::io;
+    //use std::io::prelude::*;
+    //use std::io::{Error, ErrorKind};
 
-    protocol! {
-        Testproto : HeaderEncoder => {
-            0 => Message { a: u16, b: u16 }
-            1 => Msg { a: u16, b: u16, c: u16, d: u16, e: u16, f: u16 , g: u16, h: u16 }
-        }
-        //Otherproto: |x, y| -> [u8; 2] { [0u8, 2] }, |x: &mut Read| -> (u64, usize) { (0, 6) } => {
-            //0 => Message { a: u16 }
+    //struct HeaderEncoder;
+    //impl PacketHeader for HeaderEncoder {
+        //fn write(id: u16, len: usize, dst: &mut Write) -> io::Result<usize> {
+            //let mut hdr_len= try!(<u16 as Endec>::encode(&id, dst));
+            //hdr_len += try!(<usize as Endec>::encode(&len, dst));
+            //Ok(hdr_len)
         //}
-    }
+        //fn read(src: &mut Read) -> io::Result<(u16, usize)> {
+            //let id:u16 = <u16 as Endec>::decode(src).unwrap();
+            //let len:usize = <usize as Endec>::decode(src).unwrap();
+            //Ok((id, len))
+        //}
+    //}
+
+    //protocol! {
+        //Testproto : HeaderEncoder => {
+            //0 => Message { a: u16, b: u16 }
+            //1 => Msg { a: u16, b: u16, c: u16, d: u16, e: u16, f: u16 , g: u16, h: u16 }
+        //}
+        ////Otherproto: |x, y| -> [u8; 2] { [0u8, 2] }, |x: &mut Read| -> (u64, usize) { (0, 6) } => {
+            ////0 => Message { a: u16 }
+        ////}
+    //}
     
-    #[test]
-    fn test_encode() {
-        let x:Testproto = Testproto::Message { a: 10, b: 15 };
-        let mut buf:Vec<u8> = Vec::new();
-        assert!(Testproto::encode(&x, &mut buf).unwrap() == 8);
-    }
+    //#[test]
+    //fn test_encode() {
+        //let x:Testproto = Testproto::Message { a: 10, b: 15 };
+        //let mut buf:Vec<u8> = Vec::new();
+        //assert!(Testproto::encode(&x, &mut buf).unwrap() == 8);
+    //}
     
-    #[test]
-    fn test_decode() {
-        let buf:Vec<u8> = vec![0u8, 0, 0, 4, 0, 10, 0, 15];
-        let msg = Testproto::decode(&mut &buf[..]).unwrap();
-        assert!(Testproto::Message { a: 10, b: 15 } == msg);
-    }
-}
+    //#[test]
+    //fn test_decode() {
+        //let buf:Vec<u8> = vec![0u8, 0, 0, 4, 0, 10, 0, 15];
+        //let msg = Testproto::decode(&mut &buf[..]).unwrap();
+        //assert!(Testproto::Message { a: 10, b: 15 } == msg);
+    //}
+//}
