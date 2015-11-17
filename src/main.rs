@@ -2,7 +2,8 @@
 use std::io;
 use std::io::prelude::*;
 use std::io::{Error, ErrorKind};
-use protobuilder::{PacketHeader, Endec};
+use protobuilder::types::*;
+use protobuilder::{PacketHeader};
 
 struct HeaderEncoder;
 impl PacketHeader for HeaderEncoder {
