@@ -21,7 +21,7 @@ impl Endec for String {
         let strlen = <u16 as Endec>::decode(src).unwrap();
         let mut buf: Vec<u8> = Vec::with_capacity(strlen as usize);
 
-        src.take(strlen as u64).read_to_end(&mut buf);
+        try!(src.take(strlen as u64).read_to_end(&mut buf));
 
         let string = str::from_utf8(&buf).unwrap();
         Ok(string.to_string())
@@ -31,7 +31,6 @@ impl Endec for String {
 #[cfg(test)]
 mod tests {
     use Endec;
-    use super::*;
 
     #[test]
     fn test_decode_string() {
@@ -48,7 +47,6 @@ mod tests {
         let expected = vec![0u8, 3u8, 65u8, 66u8, 67u8];
         let len = String::encode(&"ABC".to_string(), &mut vec).unwrap();
    
-        println!("-----> {}", len);
         assert_eq!(5, len);
         assert_eq!(expected, vec);
     }

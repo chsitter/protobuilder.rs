@@ -37,7 +37,7 @@ mod tests {
         let buf = vec![0x00, 0x01, 0x00, 0x05, 0x68, 0x65, 0x6c, 0x6c, 0x6f];
         let arr = <Arr<u16, String> as Endec>::decode(&mut &buf[..]).unwrap();
 
-        //assert_eq!(1, arr.len());
+        assert_eq!(1, arr.len());
         assert_eq!("hello".to_string(), arr[0]);
     }
 
@@ -46,7 +46,7 @@ mod tests {
         let buf = vec![0x00, 0x02, 0x00, 0x01, 0x00, 0x02];
         let arr = <Arr<u16, u16> as Endec>::decode(&mut &buf[..]).unwrap();
 
-        //assert_eq!(2, arr.len());
+        assert_eq!(2, arr.len());
         assert_eq!(vec![1,2], arr);
     }
 
@@ -55,9 +55,9 @@ mod tests {
         let expected = vec![0x00, 0x01, 0x00, 0x05, 0x68, 0x65, 0x6c, 0x6c, 0x6f];
         let mut vec: Vec<u8> = Vec::new();
 
-        <Arr<u16, String> as Endec>::encode(&vec!["hello".to_string()], &mut vec);
+        let encoded_len = <Arr<u16, String> as Endec>::encode(&vec!["hello".to_string()], &mut vec).unwrap();
 
-        //assert_eq!(9, <Arr<u16, String> as Endec>::len(&vec!["hello".to_string()]));
+        assert_eq!(9, encoded_len);
         assert_eq!(expected, vec);
     }
 
@@ -66,9 +66,9 @@ mod tests {
         let expected = vec![0x00, 0x02, 0x00, 0x01, 0x00, 0x02];
         let mut vec = Vec::new();
 
-        <Arr<u16,u16> as Endec>::encode(&vec![1,2], &mut vec);
+        let encoded_len = <Arr<u16,u16> as Endec>::encode(&vec![1,2], &mut vec).unwrap();
 
-        //assert_eq!(6, <Arr<u16,u16> as Endec>::len(&vec![1,2]));
+        assert_eq!(6, encoded_len);
         assert_eq!(expected, vec);
     }
 }

@@ -63,16 +63,18 @@ mod tests {
     #[test]
     fn test_encode_u16() {
         let mut vec: Vec<u8> = Vec::new();
-        encode_u16(&256, &mut vec);
-        
+        let encoded_len = encode_u16(&256, &mut vec).unwrap();
+       
+        assert_eq!(encoded_len, 2);
         assert_eq!(vec![0x01, 0x00], vec);
     }
 
     #[test]
     fn test_encode_u16_1() {
         let mut vec: Vec<u8> = Vec::new();
-        encode_u16(&1, &mut vec);
+        let encoded_len = encode_u16(&1, &mut vec).unwrap();
 
+        assert_eq!(encoded_len, 2);
         assert_eq!(vec![0x00, 0x01], vec);
     }
 }
