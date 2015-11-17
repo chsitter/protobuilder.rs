@@ -20,7 +20,7 @@ impl PacketHeader for HeaderEncoder {
 
 protocol! {
     Testproto : HeaderEncoder => {
-        0 => Message { a: u16, b: u16 }
+        0 => Message { a: u16, b: u16, c: String }
         1 => Msg { a: u16, b: u16, c: u16, d: u16, e: u16, f: u16 , g: u16, h: u16 }
     }
     //Otherproto: |x, y| -> [u8; 2] { [0u8, 2] }, |x: &mut Read| -> (u64, usize) { (0, 6) } => {

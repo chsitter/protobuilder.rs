@@ -34,7 +34,7 @@ macro_rules! packets {
                 let mut buf: Vec<u8> = Vec::new();
 
                 match value { $(
-                    &$proto_name::$name { $($fname),* } => {
+                    &$proto_name::$name { $(ref $fname),* } => {
                         //TODO: try! is not the best thing here
                         $(len += try!(<$fty as Endec>::encode(&$fname, &mut buf));)*;
                         len += try!(<$header_endec as PacketHeader>::write($id, len, dst));
