@@ -1,7 +1,6 @@
 pub mod primitive;
 pub mod util;
 pub mod string;
-pub mod arr;
+pub mod vec;
 
-pub use self::arr::Arr;
 pub use super::Endec;

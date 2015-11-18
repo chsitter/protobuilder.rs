@@ -6,7 +6,6 @@ use types::util::{decode_u16, encode_u16, decode_i32, encode_i32, decode_usize, 
 macro_rules! impl_endec{
     ($name:ty, $enc_func:ident, $dec_func:ident) => {
         impl Endec for $name {
-            type T = $name;
 
             fn encode(value: &$name, dst: &mut Write) -> io::Result<usize> {
                 $enc_func(value, dst)

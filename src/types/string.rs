@@ -4,7 +4,6 @@ use std::str;
 use super::Endec;
 
 impl Endec for String {
-    type T = String;
 
     fn encode(value: &String, dst: &mut Write) -> io::Result<usize> {
         let mut buf: Vec<u8> = Vec::with_capacity(value.len());

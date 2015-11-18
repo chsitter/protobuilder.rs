@@ -4,11 +4,9 @@ extern crate num;
 use std::io;
 use std::io::prelude::*;
 
-pub trait Endec {
-    type T;
-
-    fn encode(value: &Self::T, dst: &mut Write) -> io::Result<usize>;
-    fn decode(src: &mut Read) -> io::Result<Self::T>;
+pub trait Endec:Sized{
+    fn encode(value: &Self, dst: &mut Write) -> io::Result<usize>;
+    fn decode(src: &mut Read) -> io::Result<Self>;
 }
 
 pub trait PacketHeader {
@@ -27,9 +25,8 @@ macro_rules! packets {
         }
 
         impl Endec for $proto_name {
-            type T = $proto_name;
 
-            fn encode(value: &Self::T, dst: &mut Write) -> io::Result<usize> {
+            fn encode(value: &Self, dst: &mut Write) -> io::Result<usize> {
                 let mut len: usize = 0;
                 let mut buf: Vec<u8> = Vec::new();
 
@@ -45,14 +42,15 @@ macro_rules! packets {
                 Ok(len)
             }
             
-            fn decode(src: &mut Read) -> io::Result<Self::T> {
+            fn decode(src: &mut Read) -> io::Result<Self> {
                 let (id, len) = try!(<$header_endec as PacketHeader>::read(src));
+                let mut handle = src.take(len as u64);
 
                 match id { 
                     $(
                         $id => Ok($proto_name::$name {
                                     $(
-                                        $fname:try!(<$fty as Endec>::decode(src))
+                                        $fname:try!(<$fty as Endec>::decode(&mut handle))
                                     ),*
                                 }),
                     )+
@@ -95,7 +93,7 @@ mod tests {
 
     protocol! {
         Testproto : HeaderEncoder => {
-            0 => Message { a: u16, b: u16 }
+            0 => Message { a: u16, b: u16, c: Vec<String> }
             1 => Msg { a: u16, b: u16, c: u16, d: u16, e: u16, f: u16 , g: u16, h: u16 }
         }
         //Otherproto: |x, y| -> [u8; 2] { [0u8, 2] }, |x: &mut Read| -> (u64, usize) { (0, 6) } => {
@@ -105,15 +103,15 @@ mod tests {
     
     #[test]
     fn test_encode() {
-        let x:Testproto = Testproto::Message { a: 10, b: 15 };
+        let x:Testproto = Testproto::Message { a: 10, b: 15, c: vec!["hi".to_string()] };
         let mut buf:Vec<u8> = Vec::new();
-        assert!(Testproto::encode(&x, &mut buf).unwrap() == 8);
+        assert!(Testproto::encode(&x, &mut buf).unwrap() == 14);
     }
     
     #[test]
     fn test_decode() {
-        let buf:Vec<u8> = vec![0u8, 0, 0, 4, 0, 10, 0, 15];
+        let buf:Vec<u8> = vec![0u8, 0, 0, 10, 0, 10, 0, 15, 0, 1, 0, 2, 104, 105];
         let msg = Testproto::decode(&mut &buf[..]).unwrap();
-        assert!(Testproto::Message { a: 10, b: 15 } == msg);
+        assert!(Testproto::Message { a: 10, b: 15, c: vec!["hi".to_string()] } == msg);
     }
 }
