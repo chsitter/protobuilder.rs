@@ -1,5 +1,5 @@
 use std::io;
-use std::io::{Read, Write};
+use std::io::{Read, Write, ErrorKind, Error};
 
 pub fn decode_u16(src: &mut Read) -> io::Result<u16> {
     let mut buf = [0u8; 2];
@@ -34,19 +34,36 @@ pub fn encode_i32(value: &i32, dst: &mut Write) -> io::Result<usize> {
     Ok(4)
 }
 
-pub fn decode_usize(src: &mut Read) -> io::Result<usize> {
-    let mut buf = [0u8; 2];
+pub fn decode_u64(src: &mut Read) -> io::Result<u64> {
+    let mut buf = [0u8; 8];
     assert_eq!(src.read(&mut buf).is_ok(), true);
-    Ok(((buf[0] as usize) << 8 ) | (buf[1] as usize))
+    Ok((buf[0] as u64) << 56 | (buf[1] as u64) << 48 | (buf[2] as u64) << 40 | (buf[3] as u64) << 32 | (buf[4] as u64) << 24 | (buf[5] as u64) << 16 | (buf[6] as u64) << 8  | (buf[7] as u64))
+}
+
+pub fn encode_u64(value: &u64, dst: &mut Write) -> io::Result<usize>{
+    let mut buf = [0u8; 8];
+    buf[0] = (value >> 56 & 0xffu8 as u64) as u8;
+    buf[1] = (value >> 48 & 0xffu8 as u64) as u8;
+    buf[2] = (value >> 40 & 0xffu8 as u64) as u8;
+    buf[3] = (value >> 32 & 0xffu8 as u64) as u8;
+    buf[4] = (value >> 24 & 0xffu8 as u64) as u8;
+    buf[5] = (value >> 16 & 0xffu8 as u64) as u8;
+    buf[6] = (value >> 8 & 0xffu8 as u64) as u8;
+    buf[7] = (value & 0xffu8 as u64) as u8;
+
+    assert_eq!(dst.write(&buf).is_ok(), true);
+    Ok(8)
+}
+
+pub fn decode_usize(src: &mut Read) -> io::Result<usize> {
+    match decode_u64(src) {
+        Ok(decoded) => Ok(decoded as usize),
+        Err(_) => Err(Error::new(ErrorKind::Other, "Failed to decode usize"))
+    }
 }
 
 pub fn encode_usize(value: &usize, dst: &mut Write) -> io::Result<usize> {
-    let mut buf = [0u8; 2];
-    buf[0] = (value >> 8 & 0xffu8 as usize) as u8;
-    buf[1] = (value & 0xffu8 as usize) as u8;
-
-    assert_eq!(dst.write(&buf).is_ok(), true);
-    Ok(2)
+    encode_u64(&(*value as u64), dst)
 }
 
 #[cfg(test)]
